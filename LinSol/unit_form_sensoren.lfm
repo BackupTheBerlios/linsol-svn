@@ -1,0 +1,23 @@
+object Form_Sensoren: TForm_Sensoren
+  Left = 286
+  Height = 255
+  Top = 483
+  Width = 130
+  HorzScrollBar.Visible = False
+  BorderStyle = bsToolWindow
+  Caption = 'Sensoren'
+  ClientHeight = 255
+  ClientWidth = 130
+  Font.Height = -11
+  FormStyle = fsStayOnTop
+  ShowInTaskBar = stNever
+  LCLVersion = '1.1'
+  object Panel1: TPanel
+    Left = 0
+    Height = 255
+    Top = 0
+    Width = 128
+    Caption = 'Panel1'
+    TabOrder = 0
+  end
+end
