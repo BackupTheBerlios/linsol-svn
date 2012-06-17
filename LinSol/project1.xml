@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<CONFIG>
-  <TApplication>
-    <Form1 LS1_Top="123" LS2_Top="224" LS3_Top="496" LS4_Top="160" LS5_Top="448" LS6_Top="368" LS7_Top="336" LS8_Top="264" LS9_Top="320" LS10_Top="384" LS11_Top="376" LS12_Top="508" LS13_Top="304" LS14_Top="416" LS15_Top="488" LS16_Top="177" LS1_Left="113" LS2_Left="432" LS3_Left="416" LS4_Left="600" LS5_Left="168" LS6_Left="272" LS7_Left="208" LS8_Left="432" LS9_Left="432" LS10_Left="424" LS11_Left="584" LS12_Left="192" LS13_Left="560" LS14_Left="616" LS15_Left="192" LS16_Left="321" item_HBild="U:\Entwicklung\Daten\d-logg\UVR-aktuelleDaten\Solar-Anlage_2.png" Edit_IP_Text="192.168.100.100" Edit_Port_Text="40000" Edit_USBPort_Text="/dev/ttyUSB0" RadioButton_IP_Checked="1" RadioButton_USB_Checked="0"/>
-  </TApplication>
-</CONFIG>
