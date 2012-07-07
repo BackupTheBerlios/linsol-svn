@@ -145,12 +145,16 @@ begin
   if SolDat.SolDat[DateEdit_Start.Date,DateEdit_Ende.Date] then begin
     //Memo1.Append(IntToStr(Length(SolDat.SolDatRecArray)));
     //Memo1.Append(FormatFloat('###,###.##',SolDat.SolDatRecArray[1].Sensoren[14]));
-    anzahl:=Length(SolDat.SolDatRecArray);
+    anzahl:=SolDat.SolDatRecCount;
+//    anzahl:=Length(SolDat.SolDatRecArray);
     for i:=0 to anzahl-1 do
       Memo1.Append(DateTimeToStr(SolDat.SolDatRecArray[i].RDateTime));
   end
   else
     Memo1.Append('Daten lesen mit FALSE beendet.');
+  Memo1.Append('Anzahl Daten: '+IntToStr(anzahl));
+  if Not SolDat.SolDatAlleDaten then
+    ShowMessage('Achtung! Es werden nur '+IntToStr(anzahl)+' Daten angezeigt!');
 end;
 
 procedure TForm1.Button_inTabelleClick(Sender: TObject);
@@ -169,7 +173,8 @@ begin
   Chart1LineSeries1.SeriesColor:=clRed;
   Chart1LineSeries2.SeriesColor:=clBlue;
 
-  anzahl:=Length(SolDat.SolDatRecArray);
+//  anzahl:=Length(SolDat.SolDatRecArray);
+  anzahl:=SolDat.SolDatRecCount;
   dt := now;
   StringGrid1.Clean;
   StringGrid1.RowCount:=anzahl+1;
@@ -208,7 +213,7 @@ begin
     j:=j+1;
     // LineChart:
     ListChartSource1.Add(SolDat.SolDatRecArray[i].RDateTime,SolDat.SolDatRecArray[i].Sensoren[0]);
-//    ListChartSource2.Add(SolDat.SolDatRecArray[i].RDateTime,SolDat.SolDatRecArray[i].Sensoren[1]);
+    ListChartSource2.Add(SolDat.SolDatRecArray[i].RDateTime,SolDat.SolDatRecArray[i].Sensoren[1]);
 
     for k:=0 to 15 do begin
       StringGrid1.Cells[j,i+1]:=FormatFloat('###,##0.##',SolDat.SolDatRecArray[i].Sensoren[k]);
@@ -217,7 +222,7 @@ begin
     if (SolDat.SolDatRecArray[i].Wmz1_aktiv) and (SolDat.SolDatRecArray[i].Wmz2_aktiv) then
        StringGrid1.Cells[j,i+1]:='3'
     else begin
-       if (SolDat.SolDatRecArray[i].Wmz1_aktiv) then
+        if (SolDat.SolDatRecArray[i].Wmz1_aktiv) then
        StringGrid1.Cells[j,i+1]:='1'
        else if (SolDat.SolDatRecArray[i].Wmz2_aktiv) then
          StringGrid1.Cells[j,i+1]:='2';
@@ -255,11 +260,13 @@ begin
     end;
   end;
   StringGrid1.AutoSizeColumns;
-  Memo1.Append(IntToStr(j));
+//  Memo1.Append(IntToStr(j));
   // LineChart:
   Chart1LineSeries1.Active:=True;
   Chart1LineSeries2.Active:=True;
 //  Chart1.AddSeries(s);
+  if Not SolDat.SolDatAlleDaten then
+    ShowMessage('Achtung! Es werden nur '+IntToStr(anzahl)+' Daten angezeigt!');
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
