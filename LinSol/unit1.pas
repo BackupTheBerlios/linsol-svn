@@ -1,4 +1,23 @@
+{ LinSol - Anzeige von geloggten Daten im Winsol-Format des Regler UVR-1611
+           sowie von aktuellen Daten über BL-Net
 
+  Copyright (C) 2011,2012   H. Römer hr@roemix.eu
+
+  This source is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This code is distributed in the hope that it will be useful, but WITHOUT ANY
+  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+  FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+  details.
+
+  A copy of the GNU General Public License is available on the World Wide Web
+  at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
+  to the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+  MA 02111-1307, USA.
+}
 unit Unit1;
 
 {$mode objfpc}{$H+}
@@ -10,7 +29,7 @@ uses
   StdCtrls, ExtCtrls, ComCtrls, Menus, XMLPropStorage, ExtDlgs, Grids, EditBtn,
   Spin, ExtendedNotebook, TAGraph, TASources, TAIntervalSources, TASeries,
   TARadialSeries, TATools, TAChartExtentLink, ZVDateTimePicker, u_linsoldat,
-  dateutils, types;
+  dateutils, types, VersionSupport;
 
 type
   { TForm1 }
@@ -397,7 +416,7 @@ end;
 
 procedure TForm1.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-
+  SolDat.Destroy;
 end;
 
 procedure TForm1.Button_Daten_anzeigenClick(Sender: TObject);
@@ -426,7 +445,8 @@ begin
   end;
 
   Label_LogDatei.Caption:='Log-Dir: '+SolDat.LogDatenDir;
-  anzahl:=Length(SolDat.SolDatRecArray);
+//  anzahl:=Length(SolDat.SolDatRecArray);
+  anzahl:=SolDat.SolDatRecCount;
   CursorSave:=Screen.Cursor;
   Screen.Cursor:=crHourGlass;
   Application.ProcessMessages;
@@ -596,7 +616,10 @@ begin
      DateEdit_Einzeltag.Enabled:=True;
   end;
   Button_alleDaten.Enabled:=False;
-
+  if NOT SolDat.SolDatAlleDaten then
+  MessageDlg( 'Achtung! '+#13+
+              #13+'Es werden nur '+IntToStr(anzahl)+' Datensätze angezeigt.' +#13+
+              #13+'Bitte Zeitraum kürzer wählen.', mtWarning, [mbOK], 0);
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
@@ -1501,10 +1524,15 @@ end;
 
 procedure TForm1.MenuItem_AboutClick(Sender: TObject);
 begin
-  MessageDlg('Copyright (c) 2010, 2011, 2012 by Holger Römer.'+#13+
+  MessageDlg( 'LinSol Version '+GetFileVersion+#13+
+              #13+'Copyright (c) 2010, 2011, 2012 by Holger Römer.'+#13+
               #13+'Web-Seite: d-logg-linux.roemix.eu'+#13+
-              #13+'Project-Seite mit Quellcode:'+#13+
-              #13+'https://developer.berlios.de/projects/linsol/',
+              #13+'Quellcode auf BerliOS:'+#13+
+              #13+'https://developer.berlios.de/projects/linsol/'+#13+
+              #13+' ' +#13+
+              #13+'FreePascal: '+GetCompilerInfo +#13+
+              #13+GetLCLVersion + ' - ' + GetWidgetset+#13+
+              #13+'Zielplattform: '+GetTargetInfo,
              mtInformation, [mbOK], 0);
 end;
 
@@ -2428,7 +2456,8 @@ begin
 //  BarChartLstg1.Clear;
 //  BarChartLstg2.Clear;
 
-  anzahl:=Length(SolDat.SolDatRecArray);
+//  anzahl:=Length(SolDat.SolDatRecArray);
+  anzahl:=SolDat.SolDatRecCount;
 //  ShowMessage(DateTimeToStr(SolDat.SolDatRecArray[anzahl-2].RDateTime));
   for i:=0 to anzahl-1 do begin
     if SameDate(SolDat.SolDatRecArray[i].RDateTime,EinzelTag) then begin
@@ -2770,4 +2799,4 @@ initialization
   {$I unit1.lrs}
 
 end.
-
+

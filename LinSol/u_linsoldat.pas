@@ -1,3 +1,22 @@
+{ Unit LinSolDat - Datenzugriff auf BL-Net sowie Logdateien im Winsol-Format
+
+  Copyright (C) 2011,2012   H. Römer hr@roemix.eu
+
+  This source is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This code is distributed in the hope that it will be useful, but WITHOUT ANY
+  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+  FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+  details.
+
+  A copy of the GNU General Public License is available on the World Wide Web
+  at <http://www.gnu.org/copyleft/gpl.html>. You can also obtain it by writing
+  to the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+  MA 02111-1307, USA.
+}
 unit u_LinSolDat;
 
 {$mode objfpc}{$H+}
@@ -5,7 +24,7 @@ unit u_LinSolDat;
 interface
 
 uses
-  Classes, SysUtils, dateutils, lNet, u_dl_lesen;
+  Classes, SysUtils, dateutils, lNet;
 const
   C_MODULTYP             = $4800000000181020;
   C_MODULMODUS           = $81;
@@ -46,6 +65,7 @@ type
 
   PLogRecIn = ^TLogRecIn;
   TLogRecIn = Packed Record
+//  TLogRecIn = Record
     tag       : Byte;
     std       : Byte;
     min       : Byte;
@@ -55,7 +75,7 @@ type
     dza2      : Byte;
     dza6      : Byte;
     dza7      : Byte;
-    Sensoren  : Array [0..15] of SmallInt;
+    Sensoren  : Array [0..15] of Word;//SmallInt;
     WmzFlag   : Byte;
     Wmz1      : Integer;
     Kwh1      : Word;
@@ -67,6 +87,7 @@ type
 
   PLogRec = ^TLogRec;
   TLogRec = Packed Record
+//  TLogRec = Record
     RDateTime  : TDateTime;
     leer       : Double;
     Sensoren   : Array [1..16] of Integer;//Single;
@@ -89,7 +110,7 @@ type
     mwh2       : Single;
   end;
 
-  TlogRecArray = Array of TLogRec;
+  TlogRecArray = Array [0..999999] of TLogRec; //Array of TLogRec;
 //  PlogRecArray = ^TlogRecArray;
 
   PCANkonfig = ^TCANkonfig;
@@ -123,19 +144,21 @@ type
 
     LogArray  : TlogRecArray;
     FTCANkonfig : TCANkonfig;
-    FBLNetIPAdresse: String;
-    FBLNetPort: Word;
-    FBLNetUSBPort: String;
-    FDataFlashReset: Boolean;
-    FLogDatenDir: String;
-    FLogIvallKelvin: Single;
-    FLogIvallMinute: Integer;
-    FSetLogIvall: Boolean;
-    UVR_Type   : Byte;
-    IPAdresse  : String;
-    USBPort    : String;
-    IPPort     : Word;
-    FW_Version : Integer;
+    FBLNetIPAdresse : String;
+    FBLNetPort      : Word;
+    FBLNetUSBPort   : String;
+    FDataFlashReset : Boolean;
+    FLogDatenDir    : String;
+    FLogIvallKelvin : Single;
+    FLogIvallMinute : Integer;
+    FSetLogIvall    : Boolean;
+    UVR_Type        : Byte;
+    IPAdresse       : String;
+    USBPort         : String;
+    IPPort          : Word;
+    FW_Version      : Integer;
+    LogArrayCount   : Integer;
+    LogArrayAlles   : Boolean;
 
     Buffer     : Array [0..58] of Byte;
     jahr       : SmallInt;
@@ -220,6 +243,8 @@ type
     property BLNetUSBPort    : String read FBLNetUSBPort write SetBLNetUSBPort;
     property SolDat[Start, Ende :TDateTime] : Boolean read GetSolDat;
     property SolDatRecArray  : TlogRecArray read LogArray;
+    property SolDatRecCount  : Integer read LogArrayCount;
+    property SolDatAlleDaten : Boolean read LogArrayAlles;
     property AktuelleDatenCAN : Integer read FAktuelleDatenCAN write SetAktuelleDatenCAN ;
     property AktuelleDatenLesen : Boolean read GetAktuelleDaten;
     property AktuelleDatenRecord: TlogRecArray read LogArray;
@@ -234,6 +259,7 @@ type
     EmpfangBuffer : PByte;
     OnReOk        : Boolean;
     AnzahlByteGelesen : Integer;
+    DebugFile         : TextFile;
 
 implementation
 
@@ -283,6 +309,9 @@ function TSolDat.GetSolDat(Start, Ende: TDateTime): Boolean;
 var
   FJahr, FMonat, i,anzDS  : Integer;
   EJahr, EMonat           : Integer;
+  AnzahlElementeLogArray  : Integer;
+  AnzahlDSLogDatei        : Integer;
+  FileSize                : Integer;
   FLogFile                : TFileStream;
   FileName, Dir           : String;
   Header                  : Array [0..58] of byte;
@@ -290,8 +319,15 @@ var
   FType                   : TControllerType;
   TempDate                : TDateTime;
   DataRec   : PLogRecIn;     // kompletter Datensatz mit Datum zur Auswertung
+  FDebugFile             : TFileStream;
 begin
-  Result:=False;
+ // +++ Debugg
+  //AssignFile(DebugFile,'Debug.out');
+  //Rewrite(DebugFile);
+  //FDebugFile := TFileStream.Create('Debug.hex',fmCreate);
+ // +++
+ LogArrayAlles:=True;
+ Result:=False;
   if FLogDatenDir = '' then
     Dir:=IncludeTrailingPathDelimiter(GetCurrentDir)
   else
@@ -304,16 +340,28 @@ begin
   if TimeOf(Ende) = 0 then
     Ende:=RecodeTime(Ende,23,59,59,0);
   i:=0;
+  LogArrayCount:=0;
   New(DataRec);
-  SetLength(LogArray,0);
+//  SetLength(LogArray,0);
   while ((FJahr = EJahr) and (FMonat <= EMonat)) or (FJahr < EJahr)  do begin
     FileName:=Dir+'Y'+ IntToStr(FJahr) + Format('%.2d',[FMonat])+'.log';
+    AnzahlElementeLogArray:=Length(LogArray);
 
     if FileExists(FileName) then begin
       FLogFile := TFileStream.Create(FileName,fmOpenRead+fmShareDenyWrite);
       FLogFile.ReadBuffer(Header,sizeof(Header));
       TempDaten:= TSolDat.Create;
       TempDaten.SetData(Header,sizeof(Header));
+      FileSize:=FLogFile.Size;
+      AnzahlDSLogDatei:=FileSize div sizeof(Header);
+      //if AnzahlElementeLogArray = 0 then
+      //  AnzahlElementeLogArray:= AnzahlElementeLogArray + AnzahlDSLogDatei
+      //else
+      //  AnzahlElementeLogArray:= AnzahlElementeLogArray + AnzahlDSLogDatei - 1;
+
+//      SetLength(LogArray,AnzahlElementeLogArray ); //- 1);
+      // +++ Debug
+//        WriteLn(DebugFile,'Length(LogArray): '+IntToStr(Length(LogArray)));
 
       if Header[7] = C_UVR1611 then begin
         FType := ctUVR1611;
@@ -325,30 +373,48 @@ begin
       try
         while FLogFile.Position < FLogFile.Size do begin
           if FType = ctUVR1611 then begin
-            FLogFile.ReadBuffer(DataRec^.tag,SizeOf(TLogRecIn));
+            FLogFile.ReadBuffer(DataRec^.tag,SizeOf(TLogRecIn));  //59);
+            // +++ Debug
+  //            FDebugFile.WriteBuffer(DataRec^,59);
             TempDate:=EncodeDateTime(FJahr,FMonat,DataRec^.tag,DataRec^.std,
                       DataRec^.min,DataRec^.sek,0);
             if (TempDate >= Start) and (TempDate <= Ende) then begin
-               SetLength(LogArray,Length(LogArray)+1);
                LogArray[i].RDateTime:=TempDate;
                fuelleLogArray(DataRec^, i);
                anzDS:=anzDS+1;
                i:= i+1;
+               // +++ Debug
+//               WriteLn(DebugFile,'anzDS: '+IntToStr(anzDS)+' i: '+IntToStr(i));
             end;
+          end;
+          if i >= Length(LogArray) then begin
+             LogArrayAlles:=False;
+            break;
           end;
         end;
       finally
       end;
-      FLogFile.Destroy;
+      FLogFile.Free;
       Result:=True;
     end;
+//    SetLength(LogArray,i);
     if FMonat < 12 then
        FMonat:=FMonat+1
     else begin
        FMonat:=1;
        FJahr:=FJahr+1;
     end;
+    if i >= Length(LogArray) then
+      break;
   end;
+  TempDaten.Free;
+  LogArrayCount:=i;
+  // +++ Debug
+  //FDebugFile.Free;
+  //WriteLn(DebugFile,'Length(LogArray): '+IntToStr(Length(LogArray)));
+  //WriteLn(DebugFile,'LogArrayCount: '+IntToStr(LogArrayCount));
+  //CloseFile(DebugFile);
+  // +++ Debug
 
 end;
 
@@ -918,8 +984,10 @@ var
 //  AktDaten : PLogRec;
 begin
 // New(DataRec);
- SetLength(LogArray,2);
+//******************************************************************************************************************************
+// SetLength(LogArray,2);
  if DSaetze = 1 then begin
+   LogArrayCount:=1;
     UVR_Type:=EmpfangBuffer[0];
     berechne_werte(1);
     for i:=0 to 12 do begin
@@ -977,6 +1045,7 @@ begin
     LogArray[0].RDateTime:=now;
   end;
  if DSaetze = 2 then begin
+   LogArrayCount:=2;
     UVR_Type:=EmpfangBuffer[0];
     berechne_werte(2);
     for i:=0 to 12 do begin
@@ -1512,7 +1581,14 @@ var
   Ausgang   : TAusgang;
   LowHighByte  : Array[0..1] of Byte;
   ByteFolge    : Array[0..3] of Byte;
+  FDebugFile  : TFileStream;
+  FDebugFile2 : TFileStream;
 begin
+ // +++ Debug
+  //FDebugFile := TFileStream.Create('Debug.LogArray',fmCreate);
+  //FDebugFile2 := TFileStream.Create('Data.LogArray',fmCreate);
+  //FDebugFile2.WriteBuffer(Data,SizeOf(Data));
+ // +++
  i:=ArrayZeile;
  for j:=0 to 15 do begin
    Move(Data.Sensoren[j],LowHighByte,2);
@@ -1591,6 +1667,11 @@ LogArray[i].dza6_stufe:=Data.dza6 and $1F;
   LogArray[i].Kwh2:=Data.Kwh2 / 10;
   LogArray[i].mwh2:=Data.mwh2;
   LogArray[i].Lstg2:=Data.Wmz2 / 100;
+
+  // +++ Debug
+    //FDebugFile.WriteBuffer(LogArray[i],SizeOf(LogArray[i]));
+    //FDebugFile.Free;
+    //FDebugFile2.Free;
 end;
 
 function TSolDat.SetData(DataIn: array of Byte; Count: Integer): Boolean;
